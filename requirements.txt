@@ -1,0 +1,4 @@
+torch
+transformers
+flask
+python-telegram-bot
