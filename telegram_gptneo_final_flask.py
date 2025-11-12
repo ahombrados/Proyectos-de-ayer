@@ -8,7 +8,7 @@ import os
 # --------------------------
 # CONFIGURACIÓN
 # --------------------------
-TELEGRAM_TOKEN = "TU_TOKEN_TELEGRAM"
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 HISTORIAL_FILE = "historial.json"
 MAX_HISTORIAL = 5         # máximo de mensajes guardados por usuario
 TEMPERATURE = 0.7         # creatividad de la IA
@@ -120,3 +120,4 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     print(f"Servidor Flask ejecutándose en puerto {port}...")
     app.run(host="0.0.0.0", port=port)
+
