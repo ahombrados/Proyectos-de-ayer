@@ -81,11 +81,13 @@ def gpt_responder(user_id, mensaje):
     
     # Generar respuesta sin gradientes (reduce memoria)
     with torch.no_grad():
-        outputs = model.generate(**inputs,
-                                 max_length=inputs.input_ids.shape[1] + MAX_RESPONSE_LENGTH,
-                                 pad_token_id=tokenizer.eos_token_id,
-                                 do_sample=True,
-                                 temperature=TEMPERATURE)
+        outputs = model.generate(
+            **inputs,
+            max_length=inputs.input_ids.shape[1] + MAX_RESPONSE_LENGTH,
+            pad_token_id=tokenizer.eos_token_id,
+            do_sample=True,
+            temperature=TEMPERATURE
+        )
     
     texto_respuesta = tokenizer.decode(outputs[0], skip_special_tokens=True)
     respuesta_final = texto_respuesta[len(prompt):].strip()
@@ -97,21 +99,36 @@ def gpt_responder(user_id, mensaje):
 # --------------------------
 @app.route("/webhook", methods=["POST"])
 def webhook():
-    update = Update.de_json(request.get_json(force=True), bot)
-    
-    if update.message and update.message.text:
-        user_id = update.message.from_user.id
-        mensaje_usuario = update.message.text.strip()
-        
-        if mensaje_usuario.lower() == "/reset":
-            resetear_historial(user_id)
-            bot.send_message(chat_id=update.message.chat.id,
-                             text="✅ Historial reiniciado. Empecemos de nuevo.")
+    try:
+        update = Update.de_json(request.get_json(force=True), bot)
+        print("Update recibido de Telegram:")
+        print(update.to_dict())  # imprime todo lo que llega para debug
+
+        if update.message and update.message.text:
+            print(f"Mensaje recibido: {update.message.text}")
+            user_id = update.message.from_user.id
+            mensaje_usuario = update.message.text.strip()
+            
+            if mensaje_usuario.lower() == "/reset":
+                resetear_historial(user_id)
+                bot.send_message(chat_id=update.message.chat.id,
+                                 text="✅ Historial reiniciado. Empecemos de nuevo.")
+            else:
+                try:
+                    respuesta = gpt_responder(user_id, mensaje_usuario)
+                    bot.send_message(chat_id=update.message.chat.id, text=respuesta)
+                except Exception as e:
+                    print(f"Error generando respuesta: {e}")
+                    bot.send_message(chat_id=update.message.chat.id, text="❌ Error procesando tu mensaje.")
         else:
-            respuesta = gpt_responder(user_id, mensaje_usuario)
-            bot.send_message(chat_id=update.message.chat.id, text=respuesta)
-    
+            print("Update no contiene mensaje de texto.")
+    except Exception as e:
+        print(f"Error procesando webhook: {e}")
     return "ok"
+
+# --------------------------
+# ENDPOINT DE TEST
+# --------------------------
 @app.route("/test", methods=["GET"])
 def test():
     return "ok from Flask!"
@@ -123,5 +140,3 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     print(f"Servidor Flask ejecutándose en puerto {port}...")
     app.run(host="0.0.0.0", port=port)
-
-
