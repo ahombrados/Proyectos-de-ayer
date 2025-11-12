@@ -18,11 +18,11 @@ bot = Bot(token=TELEGRAM_TOKEN)
 app = Flask(__name__)
 
 # --------------------------
-# CARGAR MODELO GPT-Neo 125M
+# CARGAR MODELO DISTILGPT2 (ligero)
 # --------------------------
-print("Cargando modelo GPT-Neo 125M...")
-tokenizer = AutoTokenizer.from_pretrained("EleutherAI/gpt-neo-125M")
-model = AutoModelForCausalLM.from_pretrained("EleutherAI/gpt-neo-125M")
+print("Cargando modelo DistilGPT2 (ligero)...")
+tokenizer = AutoTokenizer.from_pretrained("distilgpt2")
+model = AutoModelForCausalLM.from_pretrained("distilgpt2")
 device = "cuda" if torch.cuda.is_available() else "cpu"
 model.to(device)
 print("Modelo cargado en:", device)
@@ -47,7 +47,6 @@ def agregar_mensaje(user_id, rol, mensaje):
         historial[str(user_id)] = [{"role": "system",
                                     "content": "Eres un asistente amigable que puede mantener conversaciones de todo tipo."}]
     historial[str(user_id)].append({"role": rol, "content": mensaje})
-    # Limitar historial para no crecer demasiado
     if len(historial[str(user_id)]) > MAX_HISTORIAL + 1:
         historial[str(user_id)] = [historial[str(user_id)][0]] + historial[str(user_id)][-MAX_HISTORIAL:]
     guardar_historial(historial)
@@ -65,7 +64,7 @@ def resetear_historial(user_id):
 # --------------------------
 # FUNCIÓN PARA RESPONDER
 # --------------------------
-def gptneo_responder(user_id, mensaje):
+def gpt_responder(user_id, mensaje):
     agregar_mensaje(user_id, "user", mensaje)
     historial_usuario = obtener_historial(user_id)
     
@@ -98,13 +97,12 @@ def webhook():
         user_id = update.message.from_user.id
         mensaje_usuario = update.message.text.strip()
         
-        # Comando especial: resetear historial
         if mensaje_usuario.lower() == "/reset":
             resetear_historial(user_id)
             bot.send_message(chat_id=update.message.chat.id,
                              text="✅ Historial reiniciado. Empecemos de nuevo.")
         else:
-            respuesta = gptneo_responder(user_id, mensaje_usuario)
+            respuesta = gpt_responder(user_id, mensaje_usuario)
             bot.send_message(chat_id=update.message.chat.id, text=respuesta)
     
     return "ok"
@@ -116,4 +114,3 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     print(f"Servidor Flask ejecutándose en puerto {port}...")
     app.run(host="0.0.0.0", port=port)
-
