@@ -1,7 +1,6 @@
 from flask import Flask, request
 from telegram import Bot, Update
 from telegram.constants import ParseMode
-import asyncio
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import json
@@ -14,29 +13,25 @@ TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 HISTORIAL_FILE = "historial.json"
 MAX_HISTORIAL = 5
 TEMPERATURE = 0.7
-MAX_RESPONSE_LENGTH = 100
-MAX_PROMPT_LENGTH = 256
+MAX_RESPONSE_LENGTH = 40   # más corto para ahorrar memoria
+MAX_PROMPT_LENGTH = 100    # más corto para ahorrar memoria
 
 bot = Bot(token=TELEGRAM_TOKEN)
 app = Flask(__name__)
 
 # --------------------------
-# CARGAR MODELO TinyLlama
+# CARGAR MODELO MUY LIGERO
 # --------------------------
-print("Cargando modelo TinyLlama-Chat...")
-tokenizer = AutoTokenizer.from_pretrained("TinyLlama/TinyLlama-1.1B-Chat-v1.0")
-model = AutoModelForCausalLM.from_pretrained(
-    "TinyLlama/TinyLlama-1.1B-Chat-v1.0",
-    torch_dtype=torch.float16 if torch.cuda.is_available() else torch.float32,
-    low_cpu_mem_usage=True
-)
-device = "cuda" if torch.cuda.is_available() else "cpu"
+print("Cargando modelo tiny-gpt2...")
+tokenizer = AutoTokenizer.from_pretrained("sshleifer/tiny-gpt2")
+model = AutoModelForCausalLM.from_pretrained("sshleifer/tiny-gpt2")
+device = "cpu"
 model.to(device)
 model.eval()
-print("Modelo cargado correctamente en", device)
+print("Modelo cargado en CPU")
 
 # --------------------------
-# FUNCIONES DE HISTORIAL
+# HISTORIAL DE USUARIOS
 # --------------------------
 def cargar_historial():
     try:
@@ -52,7 +47,7 @@ def guardar_historial(historial):
 def agregar_mensaje(user_id, rol, mensaje):
     historial = cargar_historial()
     if str(user_id) not in historial:
-        historial[str(user_id)] = [{"role": "system", "content": "Eres un asistente útil y amable."}]
+        historial[str(user_id)] = [{"role": "system", "content": "Eres un asistente amigable."}]
     historial[str(user_id)].append({"role": rol, "content": mensaje})
     if len(historial[str(user_id)]) > MAX_HISTORIAL + 1:
         historial[str(user_id)] = [historial[str(user_id)][0]] + historial[str(user_id)][-MAX_HISTORIAL:]
@@ -64,7 +59,7 @@ def obtener_historial(user_id):
 
 def resetear_historial(user_id):
     historial = cargar_historial()
-    historial[str(user_id)] = [{"role": "system", "content": "Eres un asistente útil y amable."}]
+    historial[str(user_id)] = [{"role": "system", "content": "Eres un asistente amigable."}]
     guardar_historial(historial)
 
 # --------------------------
@@ -88,23 +83,22 @@ def gpt_responder(user_id, mensaje):
             max_length=inputs.input_ids.shape[1] + MAX_RESPONSE_LENGTH,
             pad_token_id=tokenizer.eos_token_id,
             do_sample=True,
-            temperature=TEMPERATURE,
-            top_p=0.9
+            temperature=TEMPERATURE
         )
 
     texto_respuesta = tokenizer.decode(outputs[0], skip_special_tokens=True)
     respuesta_final = texto_respuesta[len(prompt):].strip()
     agregar_mensaje(user_id, "assistant", respuesta_final)
-    return respuesta_final or "🤖 No he entendido eso, ¿puedes repetirlo?"
+    return respuesta_final or "🤖 No entendí eso, prueba otra vez."
 
 # --------------------------
-# ENVÍO SINCRÓNICO A TELEGRAM
+# ENVIAR MENSAJE
 # --------------------------
-def send_message_sync(chat_id, text):
+def send_message(chat_id, text):
     try:
-        asyncio.run(bot.send_message(chat_id=chat_id, text=text, parse_mode=ParseMode.HTML))
+        bot.send_message(chat_id=chat_id, text=text, parse_mode=ParseMode.HTML)
     except Exception as e:
-        print(f"Error enviando mensaje a Telegram: {e}")
+        print(f"Error enviando mensaje: {e}")
 
 # --------------------------
 # WEBHOOK
@@ -118,14 +112,14 @@ def webhook():
         if update.message and update.message.text:
             user_id = update.message.from_user.id
             mensaje_usuario = update.message.text.strip()
-            print(f"Mensaje recibido de {user_id}: {mensaje_usuario}")
+            print(f"Mensaje de {user_id}: {mensaje_usuario}")
 
             if mensaje_usuario.lower() == "/reset":
                 resetear_historial(user_id)
-                send_message_sync(update.message.chat.id, "✅ Historial reiniciado.")
+                send_message(update.message.chat.id, "✅ Historial reiniciado.")
             else:
                 respuesta = gpt_responder(user_id, mensaje_usuario)
-                send_message_sync(update.message.chat.id, respuesta)
+                send_message(update.message.chat.id, respuesta)
         else:
             print("Update sin texto.")
     except Exception as e:
@@ -133,11 +127,11 @@ def webhook():
     return "ok"
 
 # --------------------------
-# TEST ENDPOINT
+# TEST
 # --------------------------
 @app.route("/test", methods=["GET"])
 def test():
-    return "ok from Flask + TinyLlama!"
+    return "ok from Flask + tiny-gpt2!"
 
 # --------------------------
 # INICIAR SERVIDOR
