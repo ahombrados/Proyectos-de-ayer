@@ -3,6 +3,7 @@ from telegram import Bot, Update
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import json
+import os
 
 # --------------------------
 # CONFIGURACIÓN
@@ -112,5 +113,7 @@ def webhook():
 # INICIAR SERVIDOR FLASK
 # --------------------------
 if __name__ == "__main__":
-    print("Servidor Flask ejecutándose en puerto 5000...")
-    app.run(port=5000)
+    port = int(os.environ.get("PORT", 5000))
+    print(f"Servidor Flask ejecutándose en puerto {port}...")
+    app.run(host="0.0.0.0", port=port)
+
