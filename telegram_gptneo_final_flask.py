@@ -112,6 +112,9 @@ def webhook():
             bot.send_message(chat_id=update.message.chat.id, text=respuesta)
     
     return "ok"
+@app.route("/test", methods=["GET"])
+def test():
+    return "ok from Flask!"
 
 # --------------------------
 # INICIAR SERVIDOR FLASK
@@ -120,4 +123,5 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     print(f"Servidor Flask ejecutándose en puerto {port}...")
     app.run(host="0.0.0.0", port=port)
+
 
