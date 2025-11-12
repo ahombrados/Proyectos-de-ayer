@@ -1,5 +1,7 @@
 from flask import Flask, request
 from telegram import Bot, Update
+from telegram.constants import ParseMode
+import asyncio
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import json
@@ -95,6 +97,15 @@ def gpt_responder(user_id, mensaje):
     return respuesta_final
 
 # --------------------------
+# FUNCIÓN SÍNCRONA PARA ENVIAR MENSAJES
+# --------------------------
+def send_message_sync(chat_id, text):
+    try:
+        asyncio.run(bot.send_message(chat_id=chat_id, text=text, parse_mode=ParseMode.HTML))
+    except Exception as e:
+        print(f"Error enviando mensaje a Telegram: {e}")
+
+# --------------------------
 # WEBHOOK DE TELEGRAM
 # --------------------------
 @app.route("/webhook", methods=["POST"])
@@ -102,24 +113,23 @@ def webhook():
     try:
         update = Update.de_json(request.get_json(force=True), bot)
         print("Update recibido de Telegram:")
-        print(update.to_dict())  # imprime todo lo que llega para debug
+        print(update.to_dict())
 
         if update.message and update.message.text:
-            print(f"Mensaje recibido: {update.message.text}")
             user_id = update.message.from_user.id
             mensaje_usuario = update.message.text.strip()
-            
+            print(f"Mensaje recibido de {user_id}: {mensaje_usuario}")
+
             if mensaje_usuario.lower() == "/reset":
                 resetear_historial(user_id)
-                bot.send_message(chat_id=update.message.chat.id,
-                                 text="✅ Historial reiniciado. Empecemos de nuevo.")
+                send_message_sync(update.message.chat.id, "✅ Historial reiniciado. Empecemos de nuevo.")
             else:
                 try:
                     respuesta = gpt_responder(user_id, mensaje_usuario)
-                    bot.send_message(chat_id=update.message.chat.id, text=respuesta)
+                    send_message_sync(update.message.chat.id, respuesta)
                 except Exception as e:
                     print(f"Error generando respuesta: {e}")
-                    bot.send_message(chat_id=update.message.chat.id, text="❌ Error procesando tu mensaje.")
+                    send_message_sync(update.message.chat.id, "❌ Error procesando tu mensaje.")
         else:
             print("Update no contiene mensaje de texto.")
     except Exception as e:
