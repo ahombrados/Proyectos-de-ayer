@@ -10,22 +10,23 @@ import os
 # --------------------------
 TELEGRAM_TOKEN = "TU_TOKEN_TELEGRAM"
 HISTORIAL_FILE = "historial.json"
-MAX_HISTORIAL = 10  # máximo de mensajes guardados por usuario
-TEMPERATURE = 0.7   # creatividad de la IA
-MAX_RESPONSE_LENGTH = 100  # tokens máximos de respuesta
+MAX_HISTORIAL = 5         # máximo de mensajes guardados por usuario
+TEMPERATURE = 0.7         # creatividad de la IA
+MAX_RESPONSE_LENGTH = 50  # tokens máximos de respuesta
+MAX_PROMPT_LENGTH = 200   # tokens máximos del prompt
 
 bot = Bot(token=TELEGRAM_TOKEN)
 app = Flask(__name__)
 
 # --------------------------
-# CARGAR MODELO DISTILGPT2 (ligero)
+# CARGAR MODELO PEQUEÑO (tiny-gpt2)
 # --------------------------
-print("Cargando modelo DistilGPT2 (ligero)...")
-tokenizer = AutoTokenizer.from_pretrained("distilgpt2")
-model = AutoModelForCausalLM.from_pretrained("distilgpt2")
-device = "cuda" if torch.cuda.is_available() else "cpu"
+print("Cargando modelo Tiny GPT2 (muy ligero)...")
+tokenizer = AutoTokenizer.from_pretrained("sshleifer/tiny-gpt2")
+model = AutoModelForCausalLM.from_pretrained("sshleifer/tiny-gpt2")
+device = "cpu"  # Render Free no tiene GPU
 model.to(device)
-print("Modelo cargado en:", device)
+print("Modelo cargado en CPU")
 
 # --------------------------
 # FUNCIONES DE HISTORIAL
@@ -73,14 +74,19 @@ def gpt_responder(user_id, mensaje):
     for m in historial_usuario:
         if m["role"] != "system":
             prompt += m["role"] + ": " + m["content"] + "\n"
-    prompt += "assistant: "
+    prompt += "assistant:"
 
-    inputs = tokenizer(prompt, return_tensors="pt").to(device)
-    outputs = model.generate(**inputs,
-                             max_length=inputs.input_ids.shape[1] + MAX_RESPONSE_LENGTH,
-                             pad_token_id=tokenizer.eos_token_id,
-                             do_sample=True,
-                             temperature=TEMPERATURE)
+    # Tokenizar y truncar para no superar MAX_PROMPT_LENGTH
+    inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=MAX_PROMPT_LENGTH).to(device)
+    
+    # Generar respuesta sin gradientes (reduce memoria)
+    with torch.no_grad():
+        outputs = model.generate(**inputs,
+                                 max_length=inputs.input_ids.shape[1] + MAX_RESPONSE_LENGTH,
+                                 pad_token_id=tokenizer.eos_token_id,
+                                 do_sample=True,
+                                 temperature=TEMPERATURE)
+    
     texto_respuesta = tokenizer.decode(outputs[0], skip_special_tokens=True)
     respuesta_final = texto_respuesta[len(prompt):].strip()
     agregar_mensaje(user_id, "assistant", respuesta_final)
