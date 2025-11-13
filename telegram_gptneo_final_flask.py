@@ -14,18 +14,18 @@ TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 HISTORIAL_FILE = "historial.json"
 MAX_HISTORIAL = 5
 TEMPERATURE = 0.7
-MAX_RESPONSE_LENGTH = 40   # más corto para ahorrar memoria
-MAX_PROMPT_LENGTH = 100    # más corto para ahorrar memoria
+MAX_RESPONSE_LENGTH = 50
+MAX_PROMPT_LENGTH = 150
 
 bot = Bot(token=TELEGRAM_TOKEN)
 app = Flask(__name__)
 
 # --------------------------
-# CARGAR MODELO MUY LIGERO
+# CARGAR MODELO LIGERO
 # --------------------------
-print("Cargando modelo tiny-gpt2...")
-tokenizer = AutoTokenizer.from_pretrained("sshleifer/tiny-gpt2")
-model = AutoModelForCausalLM.from_pretrained("sshleifer/tiny-gpt2")
+print("Cargando modelo distilgpt2 (más coherente que tiny-gpt2)...")
+tokenizer = AutoTokenizer.from_pretrained("distilgpt2")
+model = AutoModelForCausalLM.from_pretrained("distilgpt2")
 device = "cpu"
 model.to(device)
 model.eval()
@@ -128,11 +128,15 @@ def webhook():
     return "ok"
 
 # --------------------------
-# TEST
+# ENDPOINT DE TEST / RAÍZ
 # --------------------------
+@app.route("/", methods=["GET"])
+def root():
+    return "✅ Bot de Telegram activo y servidor Flask funcionando."
+
 @app.route("/test", methods=["GET"])
 def test():
-    return "ok from Flask + tiny-gpt2!"
+    return "ok from Flask + distilgpt2!"
 
 # --------------------------
 # INICIAR SERVIDOR
@@ -141,4 +145,3 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     print(f"Servidor Flask ejecutándose en puerto {port}...")
     app.run(host="0.0.0.0", port=port)
-
