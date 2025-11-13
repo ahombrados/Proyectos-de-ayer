@@ -5,6 +5,7 @@ import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 import json
 import os
+import asyncio
 
 # --------------------------
 # CONFIGURACIÓN
@@ -96,7 +97,7 @@ def gpt_responder(user_id, mensaje):
 # --------------------------
 def send_message(chat_id, text):
     try:
-        bot.send_message(chat_id=chat_id, text=text, parse_mode=ParseMode.HTML)
+        asyncio.run(bot.send_message(chat_id=chat_id, text=text, parse_mode=ParseMode.HTML))
     except Exception as e:
         print(f"Error enviando mensaje: {e}")
 
@@ -140,3 +141,4 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     print(f"Servidor Flask ejecutándose en puerto {port}...")
     app.run(host="0.0.0.0", port=port)
+
