@@ -12,27 +12,27 @@ import asyncio
 # --------------------------
 TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
 HISTORIAL_FILE = "historial.json"
-MAX_HISTORIAL = 5
+MAX_HISTORIAL = 3           # máximo de mensajes guardados por usuario
 TEMPERATURE = 0.7
-MAX_RESPONSE_LENGTH = 50
-MAX_PROMPT_LENGTH = 150
+MAX_RESPONSE_LENGTH = 40    # tokens de respuesta
+MAX_PROMPT_LENGTH = 100     # tokens de prompt
 
 bot = Bot(token=TELEGRAM_TOKEN)
 app = Flask(__name__)
 
 # --------------------------
-# CARGAR MODELO LIGERO
+# CARGAR MODELO MUY LIGERO
 # --------------------------
-print("Cargando modelo distilgpt2 (más coherente que tiny-gpt2)...")
-tokenizer = AutoTokenizer.from_pretrained("distilgpt2")
-model = AutoModelForCausalLM.from_pretrained("distilgpt2")
+print("Cargando modelo tiny-gpt2...")
+tokenizer = AutoTokenizer.from_pretrained("sshleifer/tiny-gpt2")
+model = AutoModelForCausalLM.from_pretrained("sshleifer/tiny-gpt2")
 device = "cpu"
 model.to(device)
 model.eval()
 print("Modelo cargado en CPU")
 
 # --------------------------
-# HISTORIAL DE USUARIOS
+# FUNCIONES DE HISTORIAL
 # --------------------------
 def cargar_historial():
     try:
@@ -128,15 +128,15 @@ def webhook():
     return "ok"
 
 # --------------------------
-# ENDPOINT DE TEST / RAÍZ
+# ENDPOINTS PARA TEST / RAÍZ
 # --------------------------
 @app.route("/", methods=["GET"])
 def root():
-    return "✅ Bot de Telegram activo y servidor Flask funcionando."
+    return "Bot de Telegram activo ✅"
 
 @app.route("/test", methods=["GET"])
 def test():
-    return "ok from Flask + distilgpt2!"
+    return "ok from Flask + tiny-gpt2!"
 
 # --------------------------
 # INICIAR SERVIDOR
